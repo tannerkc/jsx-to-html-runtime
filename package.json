@@ -1,0 +1,25 @@
+{
+  "name": "jsx-to-html-runtime",
+  "version": "1.0.7",
+  "description": "A JSX runtime for HTML rendering",
+  "main": "dist/src/index.js",
+  "module": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "swc src -d dist/src && tsc --emitDeclarationOnly --outDir dist",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": ["bun", "jsx", "runtime"],
+  "author": "Tanner Cottle <https://github.com/tcottle>",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
