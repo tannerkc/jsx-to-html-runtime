@@ -16,5 +16,5 @@ export const escapeHTML = (value: string): string => {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll("\n", "<br/>")
-    .trim();
+    // .trim();
 }

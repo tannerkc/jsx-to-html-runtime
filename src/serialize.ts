@@ -19,7 +19,8 @@ export const serialize = (
   if (typeof value === "boolean") return value ? "true" : "false";
   if (typeof value === "function") return serialize(value(), escaper);
   if (value instanceof RenderedNode) return value.string;
-  
+  if (Array.isArray(value)) return value.map(child => serialize(child, escaper)).join("");
+
   if (typeof value === "object" && "htmlContent" in value && typeof (value as RawContentNode).htmlContent === "string") {
     return value.htmlContent;
   }

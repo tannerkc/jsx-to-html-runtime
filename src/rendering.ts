@@ -23,9 +23,9 @@ const renderChildren = (attributes: JSX.HTMLAttributes): string => {
   if (!children) return "";
   return (Array.isArray(children) ? children : [children])
     .map(child => serialize(child, escapeHTML))
-    .join(" ") // Join with a space instead of an empty string
-    .replace(/\s+/g, " ") // Replace multiple spaces with a single space
-    .trim(); // Trim leading and trailing spaces
+    .join("") 
+    // .replace(/\s+/g, " ")
+    .trim();
 };
 
 const renderTag = (tag: string, attributes: string, children: string): string => {
