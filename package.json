@@ -14,7 +14,7 @@
   },
   "keywords": ["bun", "jsx", "runtime"],
   "author": "Tanner Cottle <https://github.com/tcottle>",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest"
