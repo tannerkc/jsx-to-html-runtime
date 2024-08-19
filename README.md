@@ -1,15 +1,22 @@
 # jsx-to-html-runtime
 
-To install dependencies:
+Simple JSX to HTML runtime
 
 ```bash
-bun install
+npm i jsx-to-html-runtime
+bun add jsx-to-html-runtime
+yarn add jsx-to-html-runtime
+pnpm add jsx-to-html-runtime
 ```
 
-To run:
+To use:
 
 ```bash
-bun run index.ts
+"compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "jsx-to-html-runtime"
+}
 ```
 
-This project was created using `bun init` in bun v1.1.10. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+
+Note: I've only tested with bun which automatically transpiles JSX into javascript functions.
