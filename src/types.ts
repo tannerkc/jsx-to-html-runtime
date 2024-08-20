@@ -1,13 +1,16 @@
 export type JSXNode =
   | RenderedNode
   | RawContentNode
-  | (() => JSXNode)
-  // | (() => void)
+  | ((e?: any) => JSXNode)
+  | ((e?: any) => void)
+  | Function
+  | Timer
   | boolean
   | number
   | bigint
   | string
   | null
+  | void
   | undefined;
 
 export interface JSXChildren {
