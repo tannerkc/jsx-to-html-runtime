@@ -1,3 +1,4 @@
+import { executeAndReplaceFunctionInString } from "./helpers";
 import { type JSXNode, RenderedNode } from "./types";
 
 export class SerializationError extends Error {
@@ -13,7 +14,7 @@ export const serialize = (
   escaper: (value: string) => string
 ): string => {
   if (value === null || value === undefined) return "";
-  
+  // if (typeof value === "string") return executeAndReplaceFunctionInString(escaper(value));
   if (typeof value === "string") return escaper(value);
   if (typeof value === "number" || typeof value === "bigint") return value.toString();
   if (typeof value === "boolean") return value ? "true" : "false";

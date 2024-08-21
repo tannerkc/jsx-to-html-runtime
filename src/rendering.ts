@@ -4,55 +4,68 @@ import { serialize } from "./serialize";
 import { type FunctionComponent, RenderedNode } from "./types";
 import { Signal } from './signal';
 import { batchUpdate } from "./batch";
+import { StringBuilder } from "./StringBuilder";
+import { generateUniqueId } from "./uniqueId";
 
 const memoizedRenderAttributes = new WeakMap<JSX.HTMLAttributes, string>();
 
 const renderAttributes = (attributes: JSX.HTMLAttributes): string => {
-  if (memoizedRenderAttributes.has(attributes)) {
-    return memoizedRenderAttributes.get(attributes)!;
-  }
+    if (memoizedRenderAttributes.has(attributes)) {
+        return memoizedRenderAttributes.get(attributes)!;
+    }
 
-  const eventAttributes: Record<string, Function> = {};
+    const eventAttributes: Record<string, Function> = {};
+    const signalAttributes: Record<string, Signal<any>> = {};
+    const result = new StringBuilder();
 
-  const armId = Math.floor(Math.random() * Date.now());
-  attributes['data-arm-id'] = armId;
+    const armId = generateUniqueId();
+    result.append(`data-arm-id="${armId}"`);
 
-  const result = Object.entries(attributes)
-    .filter(([key, value]) => {
-      if (key.startsWith("on") && typeof value === "function") {
-        eventAttributes[key] = value;
-        return false;
-      }
-      return key !== "children";
-    })
-    .map(([key, value]) => `${key}="${serialize(value, escapeProp)}"`)
-    .join(" ");
+    for (const [key, value] of Object.entries(attributes)) {
+        if (key.startsWith("on") && typeof value === "function") {
+            eventAttributes[key] = value;
+        } else if (typeof value === "function") {
+            signalAttributes[key] = value as any
+        } else if (key !== "children") {
+            result.append(`${key}="${serialize(value, escapeProp)}"`);
+        }
+    }
 
-  memoizedRenderAttributes.set(attributes, result);
+    const resultString = result.toString(" ")
+    memoizedRenderAttributes.set(attributes, resultString);
 
-  document.addEventListener("DOMContentLoaded", () => {
-    Object.keys(eventAttributes).forEach(eventKey => {
-        const eventName = eventKey.slice(2).toLowerCase();
-        document.querySelector(`[data-arm-id='${armId}']`)?.addEventListener(eventName, event => {
-            if (event.target instanceof HTMLElement) {
-                const handler = eventAttributes[eventKey];
-                if (handler) handler(event);
-            }
+    document.addEventListener("DOMContentLoaded", () => {
+        Object.keys(eventAttributes).forEach(eventKey => {
+            const eventName = eventKey.slice(2).toLowerCase();
+            document.querySelector(`[data-arm-id='${armId}']`)?.addEventListener(eventName, event => {
+                if (event.target instanceof HTMLElement) {
+                    const handler = eventAttributes[eventKey];
+                    if (handler) handler(event);
+                }
+            });
         });
-    });
-  })
+    })
 
-  return result;
+    return resultString;
 };
-
+  
 const renderChildren = (attributes: JSX.HTMLAttributes): string => {
-  const { children } = attributes;
-  if (!children) return "";
-  return (Array.isArray(children) ? children : [children])
-    .map(child => serialize(child, escapeHTML))
-    .join("") 
-    .trim();
+    const { children } = attributes;
+    if (!children) return "";
+
+    const sb = new StringBuilder();
+    for (const child of Array.isArray(children) ? children : [children]) {
+        if (typeof child === "function") {
+            const signalKey = `signal-${Math.floor(Math.random() * Date.now())}`;
+            sb.append(`<span data-signal-key="${signalKey}">${serialize(child(), escapeHTML)}</span>`);
+        } else {
+            sb.append(serialize(child, escapeHTML));
+        }
+    }
+
+    return sb.toString().trim();
 };
+  
 
 const renderTag = (tag: string, attributes: string, children: string): string => {
     const tagWithAttributes = `${tag} ${attributes}`.trim();
@@ -89,6 +102,7 @@ export const renderJSX = (
     props: JSX.HTMLAttributes,
     _key?: string
 ): JSX.Element => {
+    console.log({tag, props})
     if (typeof tag === "function") {
         let componentCache = memoizedComponents.get(tag);
         if (!componentCache) {
