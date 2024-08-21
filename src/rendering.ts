@@ -48,7 +48,7 @@ const renderAttributes = (attributes: JSX.HTMLAttributes): string => {
 
     return resultString;
 };
-  
+
 const renderChildren = (attributes: JSX.HTMLAttributes): string => {
     const { children } = attributes;
     if (!children) return "";
@@ -56,8 +56,12 @@ const renderChildren = (attributes: JSX.HTMLAttributes): string => {
     const sb = new StringBuilder();
     for (const child of Array.isArray(children) ? children : [children]) {
         if (typeof child === "function") {
-            const signalKey = `signal-${Math.floor(Math.random() * Date.now())}`;
-            sb.append(`<span data-signal-key="${signalKey}">${serialize(child(), escapeHTML)}</span>`);
+            if ((child as any).isGetter) {
+                const signalGetter: any = child;
+                const signature = signalGetter.signature
+                
+                sb.append(`<span data-signal-id="${signature}">${serialize(signalGetter(), escapeHTML)}</span>`);
+            }
         } else {
             sb.append(serialize(child, escapeHTML));
         }
@@ -65,7 +69,6 @@ const renderChildren = (attributes: JSX.HTMLAttributes): string => {
 
     return sb.toString().trim();
 };
-  
 
 const renderTag = (tag: string, attributes: string, children: string): string => {
     const tagWithAttributes = `${tag} ${attributes}`.trim();
@@ -73,7 +76,7 @@ const renderTag = (tag: string, attributes: string, children: string): string =>
         ? `<${tagWithAttributes}>${children}</${tag}>`
         : `<${tagWithAttributes}/>`;
 };
-  
+
 const memoizedComponents = new WeakMap<FunctionComponent, WeakMap<JSX.HTMLAttributes, RenderedNode>>();
 
 const deepEqual = (obj1: any, obj2: any): boolean => {
@@ -102,7 +105,6 @@ export const renderJSX = (
     props: JSX.HTMLAttributes,
     _key?: string
 ): JSX.Element => {
-    console.log({tag, props})
     if (typeof tag === "function") {
         let componentCache = memoizedComponents.get(tag);
         if (!componentCache) {

@@ -1,5 +1,7 @@
 // type Subscriber<T> = (value: T) => void;
 
+import { generateUniqueId } from "./uniqueId";
+
 // export class Signal<T> {
 //     private value: T;
 //     private subscribers: Set<Subscriber<T>> = new Set();
@@ -100,8 +102,48 @@ class Signal<T> {
   }
 }
 
-const useState = <T> (initialValue: T): [T, (newValue: T | ((prevValue: T) => T)) => void] => {
-  const signal = new Signal(initialValue);
-  return signal.useState();
+// const useState = <T> (initialValue: T): [T, (newValue: T | ((prevValue: T) => T)) => void] => {
+//   const signal = new Signal(initialValue);
+//   return signal.useState();
+// }
+
+let currentSubscriber: Function | null = null;
+
+const useState = (initialValue: any) => {
+    let value = initialValue;
+    const signature = generateUniqueId();
+    const subscribers = new Set<Function>();
+  
+    const get = () => {
+      if (currentSubscriber) {
+        subscribers.add(currentSubscriber);
+      }
+      return value;
+    }
+
+    get.isGetter = true;
+    get.signature = signature;
+  
+    const set = (newValue: any) => {
+      if (value !== newValue) {
+        value = newValue;
+        subscribers.forEach(subscriber => subscriber());
+
+        let signalElement = document.querySelector(`[data-signal-id='${signature}']`)
+        console.log(signature)
+        console.log(signalElement)
+        console.log(newValue)
+        if(signalElement) signalElement.innerHTML = newValue
+      }
+    }
+  
+    return [get, set];
 }
+
+export const createEffect = (effect: Function) => {
+  currentSubscriber = effect;
+  effect();
+  currentSubscriber = null;
+}
+
 export { Signal, useState };
