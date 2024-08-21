@@ -6,6 +6,7 @@ import { Signal } from './signal';
 import { batchUpdate } from "./batch";
 import { StringBuilder } from "./StringBuilder";
 import { generateUniqueId } from "./uniqueId";
+import { customElements, customElementsMap } from "./customElements";
 
 const memoizedRenderAttributes = new WeakMap<JSX.HTMLAttributes, string>();
 
@@ -71,9 +72,21 @@ const renderChildren = (attributes: JSX.HTMLAttributes): string => {
 };
 
 const renderTag = (tag: string, attributes: string, children: string): string => {
-    const tagWithAttributes = `${tag} ${attributes}`.trim();
+    const replacementTag = customElements.includes(tag) ? 'div' : tag;
+    const customStyles = customElementsMap.get(tag);
+
+    const styleMatch = attributes.match(/style="([^"]*)"/);
+    const existingStyles = styleMatch ? styleMatch[1] : "";
+
+    const mergedStyles = [existingStyles, customStyles].filter(Boolean).join(" ").trim();
+
+    const updatedAttributes = styleMatch
+        ? attributes.replace(/style="[^"]*"/, `style="${mergedStyles}"`)
+        : `${attributes} style="${mergedStyles}"`;
+
+    const tagWithAttributes = `${replacementTag} ${updatedAttributes}`.trim();
     return children
-        ? `<${tagWithAttributes}>${children}</${tag}>`
+        ? `<${tagWithAttributes}>${children}</${replacementTag}>`
         : `<${tagWithAttributes}/>`;
 };
 
