@@ -10,11 +10,13 @@
 
     // Bundler mode
     "moduleResolution": "bundler",
-    "esModuleInterop": true,
     "allowImportingTsExtensions": false,
     "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
     "noEmit": false,
     "declaration": true,
+    "composite": true,
 
     "outDir": "./dist",
     "rootDir": "./",

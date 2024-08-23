@@ -1,12 +1,10 @@
 import { escapeHTML, escapeProp } from "./escaping";
 import { type JSX } from "./jsx-runtime";
 import { serialize } from "./serialize";
-import { type FunctionComponent, RenderedNode } from "./types";
-import { Signal } from './signal';
-import { batchUpdate } from "./batch";
+import { Fragment, type FunctionComponent, RenderedNode } from "./types";
 import { StringBuilder } from "./StringBuilder";
 import { generateUniqueId } from "./uniqueId";
-import { customElements, customElementsMap } from "./customElements";
+import { customAttributes, customElements, customElementsMap } from "./customElements";
 
 const memoizedRenderAttributes = new WeakMap<JSX.HTMLAttributes, string>();
 
@@ -16,17 +14,18 @@ const renderAttributes = (attributes: JSX.HTMLAttributes): string => {
     }
 
     const eventAttributes: Record<string, Function> = {};
-    const signalAttributes: Record<string, Signal<any>> = {};
+    const eventListenerAttributes: Record<string, Array<{armId: string, value: Function}>> = {};
     const result = new StringBuilder();
 
     const armId = generateUniqueId();
     result.append(`data-arm-id="${armId}"`);
 
     for (const [key, value] of Object.entries(attributes)) {
+        eventListenerAttributes[key] = []
         if (key.startsWith("on") && typeof value === "function") {
             eventAttributes[key] = value;
-        } else if (typeof value === "function") {
-            signalAttributes[key] = value as any
+            eventListenerAttributes[key] = [...eventListenerAttributes[key], {armId, value}]
+            result.append(`${key}="${value}"`);
         } else if (key !== "children") {
             result.append(`${key}="${serialize(value, escapeProp)}"`);
         }
@@ -35,17 +34,47 @@ const renderAttributes = (attributes: JSX.HTMLAttributes): string => {
     const resultString = result.toString(" ")
     memoizedRenderAttributes.set(attributes, resultString);
 
-    document.addEventListener("DOMContentLoaded", () => {
-        Object.keys(eventAttributes).forEach(eventKey => {
-            const eventName = eventKey.slice(2).toLowerCase();
-            document.querySelector(`[data-arm-id='${armId}']`)?.addEventListener(eventName, event => {
-                if (event.target instanceof HTMLElement) {
-                    const handler = eventAttributes[eventKey];
+    // document.addEventListener("DOMContentLoaded", () => {
+    //     Object.keys(eventAttributes).forEach(eventKey => {
+    //         const eventName = eventKey.slice(2).toLowerCase();
+    //         document.querySelector(`[data-arm-id='${armId}']`)?.addEventListener(eventName, event => {
+    //             if (event.target instanceof HTMLElement) {
+    //                 const handler = eventAttributes[eventKey];
+    //                 if (handler) handler(event);
+    //             }
+    //         });
+    //     });
+    // })
+
+    // queueMicrotask(() => {
+    //     const element = document.querySelector(`[data-arm-id='${armId}']`);
+    //     if (element) {
+    //         Object.keys(eventAttributes).forEach(eventKey => {
+    //             const eventName = eventKey.slice(2).toLowerCase();
+    //             element.addEventListener(eventName, event => {
+    //                 if (event.target instanceof HTMLElement) {
+    //                     const handler = eventAttributes[eventKey];
+    //                     if (handler) handler(event);
+    //                 }
+    //             });
+    //         });
+    //     }
+    // });
+
+    Object.keys(eventListenerAttributes).forEach(eventKey => {
+        const eventName = eventKey.slice(2).toLowerCase();
+        document.addEventListener(eventName, event => {
+            let target = event.target as HTMLElement | null;
+            while (target) {
+                const armId = target.getAttribute('data-arm-id');
+                if (armId) {
+                    const handler = eventListenerAttributes[eventKey].find(x => x.armId === armId)?.value;
                     if (handler) handler(event);
                 }
-            });
+                target = target.parentElement;
+            }
         });
-    })
+    });
 
     return resultString;
 };
@@ -72,13 +101,52 @@ const renderChildren = (attributes: JSX.HTMLAttributes): string => {
 };
 
 const renderTag = (tag: string, attributes: string, children: string): string => {
-    const replacementTag = customElements.includes(tag) ? 'div' : tag;
-    const customStyles = customElementsMap.get(tag);
+    const isCustomElement = customElements.includes(tag)
+    const replacementTag = isCustomElement ? 'div' : tag;
+    const customStyles = customElementsMap.get(tag) || "";
 
     const styleMatch = attributes.match(/style="([^"]*)"/);
     const existingStyles = styleMatch ? styleMatch[1] : "";
+    
+    const additionalStyles = attributes.match(/(\w+)="([^"]*)"/g)
+        ?.filter((attr: string) => {
+            const [key] = attr.split("=");
+            return customAttributes.includes(key) && isCustomElement;
+        })
+        .map((attr: string) => {
+            const [key, value] = attr.split("=");
+            
+            if (key == "basis" && tag == "sidebar") {
+                return `flex-${key}: ${value};`.replace(/"/g, ''); 
+            }
+            if (key == "min" && tag == "grow") {
+                return `min-inline-size: min(${value.replace(/"/g, '')}, 100%);`;
+            }
+            return `${key}: ${value};`.replace(/"/g, ''); 
+        })
+        .join(" ");
 
-    const mergedStyles = [existingStyles, customStyles].filter(Boolean).join(" ").trim();
+    const breakpointMatch = attributes.match(/breakpoint="([^"]*)"/);
+    const breakpoint = breakpointMatch && breakpointMatch[1];
+
+    const armIdMatch = attributes.match(/data-arm-id="([^"]*)"/);
+    const armId = armIdMatch && armIdMatch[1];
+
+    const mediaQueryStyles = breakpoint && `
+        @media (max-width: ${breakpoint}) {
+            [data-arm-id="${armId}"] {
+                flex-direction: ${tag === 'flex-col' ? 'row' : 'column'};
+            }
+        }
+    `;
+
+    if (mediaQueryStyles) {
+        const styleElement = document.createElement('style');
+        styleElement.textContent = mediaQueryStyles;
+        document.head.appendChild(styleElement);
+    }
+
+    const mergedStyles = [existingStyles, customStyles, additionalStyles].filter(Boolean).join(" ").trim();
 
     const updatedAttributes = styleMatch
         ? attributes.replace(/style="[^"]*"/, `style="${mergedStyles}"`)
@@ -131,24 +199,15 @@ export const renderJSX = (
         }
 
         const result = tag(props);
-
-        const signalDeps = Object.values(props).filter(val => val instanceof Signal);
-        if (signalDeps.length > 0) {
-            signalDeps.forEach((signal: Signal<any>) => {
-                signal.subscribe(() => {
-                    batchUpdate(() => {
-                        const updatedResult = tag(props);
-                        componentCache!.set(props, updatedResult);
-                    });
-                });
-            });
-        }
-
         componentCache.set(props, result);
         return result;
-    }
-
-    if (tag === undefined) {
+    } else if (isFragment(tag)) {
+        const sb = new StringBuilder();
+        for (const child of tag.children) {
+          sb.append(serialize(child, escapeHTML));
+        }
+        return new RenderedNode(sb.toString().trim());
+    } else if (tag === undefined) {
         return new RenderedNode(renderChildren(props));
     }
 
@@ -156,3 +215,7 @@ export const renderJSX = (
     const children = renderChildren(props);
     return new RenderedNode(renderTag(tag, attributes, children));
 };
+
+function isFragment(node: any): node is Fragment {
+    return node instanceof Fragment;
+}

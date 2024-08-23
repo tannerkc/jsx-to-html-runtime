@@ -1,17 +1,24 @@
 export type JSXNode =
   | RenderedNode
   | RawContentNode
-  | ((e?: any) => JSXNode)
-  | ((e?: any) => void)
+  | ((event?: Event) => JSXNode | void)
   | Function
-  | Timer
-  | boolean
+  | string
   | number
   | bigint
-  | string
+  | boolean
   | null
   | void
-  | undefined;
+  | undefined
+  | JSXNode[];
+
+export class Fragment {
+  children: JSXNode[];
+
+  constructor(children: JSXNode[]) {
+    this.children = children;
+  }
+}
 
 export interface JSXChildren {
   children?: JSXNode | JSXNode[] | undefined;
