@@ -34,33 +34,6 @@ const renderAttributes = (attributes: JSX.HTMLAttributes): string => {
     const resultString = result.toString(" ")
     memoizedRenderAttributes.set(attributes, resultString);
 
-    // document.addEventListener("DOMContentLoaded", () => {
-    //     Object.keys(eventAttributes).forEach(eventKey => {
-    //         const eventName = eventKey.slice(2).toLowerCase();
-    //         document.querySelector(`[data-arm-id='${armId}']`)?.addEventListener(eventName, event => {
-    //             if (event.target instanceof HTMLElement) {
-    //                 const handler = eventAttributes[eventKey];
-    //                 if (handler) handler(event);
-    //             }
-    //         });
-    //     });
-    // })
-
-    // queueMicrotask(() => {
-    //     const element = document.querySelector(`[data-arm-id='${armId}']`);
-    //     if (element) {
-    //         Object.keys(eventAttributes).forEach(eventKey => {
-    //             const eventName = eventKey.slice(2).toLowerCase();
-    //             element.addEventListener(eventName, event => {
-    //                 if (event.target instanceof HTMLElement) {
-    //                     const handler = eventAttributes[eventKey];
-    //                     if (handler) handler(event);
-    //                 }
-    //             });
-    //         });
-    //     }
-    // });
-
     Object.keys(eventListenerAttributes).forEach(eventKey => {
         const eventName = eventKey.slice(2).toLowerCase();
         document.addEventListener(eventName, event => {
